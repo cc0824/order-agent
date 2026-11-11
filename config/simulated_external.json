@@ -1,0 +1,99 @@
+{
+  "offers": [
+    {
+      "offer_id": "iphone-base-256",
+      "model": "iPhone 16",
+      "storage_gb": 256,
+      "condition": "new",
+      "region": "CN",
+      "seller": "模拟自营店A",
+      "price_cents": 579900,
+      "shipping_cents": 0,
+      "fee_cents": 0,
+      "conditional_cents": 499900,
+      "discount_condition": "须核实换新资格",
+      "stock": 5,
+      "quote_version": 1,
+      "delivery_seconds": 1800
+    },
+    {
+      "offer_id": "iphone-plus-512",
+      "model": "iPhone 16 Plus",
+      "storage_gb": 512,
+      "condition": "new",
+      "region": "CN",
+      "seller": "模拟自营店B",
+      "price_cents": 729900,
+      "shipping_cents": 0,
+      "fee_cents": 0,
+      "stock": 2,
+      "quote_version": 1,
+      "delivery_seconds": 2400
+    },
+    {
+      "offer_id": "iphone-base-128",
+      "model": "iPhone 16",
+      "storage_gb": 128,
+      "condition": "new",
+      "region": "CN",
+      "seller": "模拟自营店C",
+      "price_cents": 499900,
+      "shipping_cents": 0,
+      "fee_cents": 0,
+      "stock": 3,
+      "quote_version": 1,
+      "delivery_seconds": 1800
+    }
+  ],
+  "orders": {
+    "e607c22d34544bccae91320bc49d7932": {
+      "order_id": "SIM-e607c22d3454",
+      "snapshot": {
+        "condition": "new",
+        "delivery_seconds": 1800,
+        "expected_delivery_at": 1794390346.212403,
+        "fee_cents": 0,
+        "model": "iPhone 16",
+        "offer_id": "iphone-base-128",
+        "price_cents": 499900,
+        "quote_version": 1,
+        "region": "CN",
+        "seller": "模拟自营店C",
+        "shipping_cents": 0,
+        "stock": 4,
+        "storage_gb": 128,
+        "total_cents": 499900
+      },
+      "payment": "UNPAID",
+      "delivery": "NOT_SHIPPED",
+      "refund": "NONE",
+      "expected_delivery_at": 1794390346.212403,
+      "version": 1
+    },
+    "39e623fef87640b2936d12f64bfb6558": {
+      "order_id": "SIM-39e623fef876",
+      "snapshot": {
+        "condition": "new",
+        "delivery_seconds": 2400,
+        "expected_delivery_at": 1794401774.3173888,
+        "fee_cents": 0,
+        "model": "iPhone 16 Plus",
+        "offer_id": "iphone-plus-512",
+        "price_cents": 729900,
+        "quote_version": 1,
+        "region": "CN",
+        "seller": "模拟自营店B",
+        "shipping_cents": 0,
+        "stock": 3,
+        "storage_gb": 512,
+        "total_cents": 729900
+      },
+      "payment": "UNPAID",
+      "delivery": "NOT_SHIPPED",
+      "refund": "NONE",
+      "expected_delivery_at": 1794401774.3173888,
+      "version": 1
+    }
+  },
+  "create_calls": 2
+}

@@ -2,13 +2,13 @@
 import os
 
 import pytest
-from dotenv import load_dotenv
+from backend.config import load_environment
 
-from order_demo.agent import AgentSession
-from order_demo.domain import Demo
+from backend.agent import AgentSession
+from backend.domain import Demo
 from test_acceptance import clarify
 
-load_dotenv()
+load_environment()
 
 
 @pytest.mark.skipif(os.getenv("RUN_LIVE_MODEL") != "1", reason="未显式启用在线模型测试 RUN_LIVE_MODEL=1")

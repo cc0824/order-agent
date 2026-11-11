@@ -1,7 +1,7 @@
 """原题 1–12 的可执行验收。断言业务事实和副作用，不匹配模型措辞。"""
 import pytest
 
-from order_demo.domain import Demo, DomainError
+from backend.domain import Demo, DomainError
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def ordered(app, timeout=False):
 
 
 def test_case_01_vague_needs_clarification_not_order(demo):
-    assert {"use_case", "budget_cents"} <= set(demo.missing_requirements())
+    assert demo.missing_requirements() == ["budget_cents"]
     assert demo.search()["status"] == "NEEDS_INPUT"
     assert demo.sim.order_count == 0
     assert demo.task["phase"] == "CLARIFYING"

@@ -1,0 +1,22 @@
+{
+  "name": "normal",
+  "start": 1800000000,
+  "steps": [
+    {"command":"/search"},
+    {"assert":{"phase":"CLARIFYING","order_count":0}},
+    {"command":"/requirements {\"use_case\":\"拍照和日常\",\"current_problem\":\"电池老化\",\"region\":\"CN\",\"budget_cents\":600000,\"storage_gb\":256,\"condition\":\"new\",\"desired_delivery_at\":1800003600,\"followup_until\":1800007200,\"check_interval_seconds\":10,\"notification_channel\":\"terminal\",\"followup_authorized\":true}"},
+    {"command":"/advance 10"},
+    {"command":"/prepare iphone-base-256"},
+    {"assert":{"phase":"WAITING_CONFIRMATION","order_count":0}},
+    {"command":"/approve $operation"},
+    {"command":"/place $operation"},
+    {"assert":{"phase":"WAITING_PAYMENT","lifecycle":"ACTIVE","order_count":1}},
+    {"command":"/event paid {\"operation_id\":\"$operation\",\"event_id\":\"paid-1\"}"},
+    {"command":"/advance 10"},
+    {"command":"/event delivered {\"operation_id\":\"$operation\",\"event_id\":\"delivered-1\"}"},
+    {"command":"/advance 10"},
+    {"assert":{"lifecycle":"ACTIVE","phase":"VERIFYING_RECEIPT"}},
+    {"command":"/event receipt {\"operation_id\":\"$operation\",\"storage_gb\":256,\"correct\":true,\"event_id\":\"receipt-1\"}"},
+    {"assert":{"lifecycle":"COMPLETED","create_calls":1}}
+  ]
+}

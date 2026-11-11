@@ -3,26 +3,37 @@ import copy
 import json
 from pathlib import Path
 
+from .config import CATALOG_FILE
+
 
 class Simulator:
-    def __init__(self, directory, now, catalog=None):
-        self.path = Path(directory) / "simulated_external.json"
+    def __init__(self, directory, now, catalog=None, mock_file=None):
+        self.path = Path(mock_file) if mock_file is not None else Path(directory) / "simulated_external.json"
         self.timeout_after_create = False
         self.fail_search = False
         self.fail_query = False
         if self.path.exists():
             self.data = json.loads(self.path.read_text(encoding="utf-8"))
         else:
-            source = Path(catalog) if catalog else Path(__file__).resolve().parents[1] / "fixtures/catalog.json"
+            source = Path(catalog) if catalog else CATALOG_FILE
             offers = json.loads(source.read_text(encoding="utf-8"))
-            for offer in offers:
-                offer["expected_delivery_at"] = now() + offer.pop("delivery_seconds")
             self.data = {"offers": offers, "orders": {}, "create_calls": 0}
             self.save()
+        # 可共享的商品用相对配送时长，进程内固定成一个报价时间。
+        # 已有订单中的绝对时间与购买快照不参与换算。
+        started_at = now()
+        for offer in self.data["offers"]:
+            if "delivery_seconds" in offer:
+                offer["expected_delivery_at"] = started_at + offer["delivery_seconds"]
 
     def save(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         temp = self.path.with_suffix(".tmp")
-        temp.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
+        persisted = copy.deepcopy(self.data)
+        for offer in persisted["offers"]:
+            if "delivery_seconds" in offer:
+                offer.pop("expected_delivery_at", None)
+        temp.write_text(json.dumps(persisted, ensure_ascii=False, indent=2), encoding="utf-8")
         temp.replace(self.path)
 
     @property
@@ -65,6 +76,8 @@ class Simulator:
                 raise ValueError("INVALID_OFFER_CHANGE")
         for offer in self.data["offers"]:
             if offer["offer_id"] == payload["offer_id"]:
+                if "expected_delivery_at" in changes:
+                    offer.pop("delivery_seconds", None)
                 offer.update(changes)
                 offer["quote_version"] += 1
                 self.save()

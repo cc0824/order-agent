@@ -6,6 +6,9 @@ import time
 import uuid
 from pathlib import Path
 
+from .conditions import normalize_condition
+from .config import requirement_defaults
+from .regions import normalize_region
 from .simulator import Simulator
 from .storage import Store, encode
 
@@ -14,26 +17,32 @@ class DomainError(ValueError):
     pass
 
 
-REQUIRED = ("use_case", "current_problem", "region", "budget_cents", "storage_gb", "condition",
-            "desired_delivery_at", "followup_until", "check_interval_seconds", "notification_channel",
-            "followup_authorized")
-ALLOWED = set(REQUIRED) | {"model", "promotion_eligible", "preferences"}
+REQUIRED = ("budget_cents",)
+ALLOWED = {"use_case", "current_problem", "region", "budget_cents", "storage_gb", "condition",
+           "desired_delivery_at", "followup_until", "check_interval_seconds", "notification_channel",
+           "followup_authorized", "model", "promotion_eligible", "preferences"}
 TERMINAL = {"ENDED", "EXPIRED", "COMPLETED"}
 
 
 class Demo:
-    def __init__(self, directory, user_id="demo", task_id="t1", now=None):
+    def __init__(self, directory, user_id="demo", task_id="t1", now=None, mock_file=None):
         self.directory = Path(directory)
         self.now = now or time.time
         self.owner = encode([user_id, task_id])
         self.store = Store(directory)
-        self.sim = Simulator(directory, self.now)
+        self.sim = Simulator(directory, self.now, mock_file=mock_file)
         self.before_action = lambda: None
         self.silent_notifications = False
-        if not self.store.task(self.owner):
+        defaults = requirement_defaults(self.now())
+        existing = self.store.task(self.owner)
+        if not existing:
             self._save(dict(user_id=user_id, task_id=task_id, lifecycle="ACTIVE", phase="CLARIFYING",
-                            requirements={}, constraints_version=0, next_check_at=0,
+                            requirements=defaults, constraints_version=0, next_check_at=0,
                             recommendation=None, outcome_reason=None))
+        elif missing := {k: v for k, v in defaults.items() if k not in existing["requirements"]}:
+            # 只补旧任务缺失项，保留所有已保存决定、版本和固定日期。
+            existing["requirements"] = {**missing, **existing["requirements"]}
+            self._save(existing)
 
     @property
     def task(self):
@@ -54,7 +63,8 @@ class Demo:
     def expire(self):
         task = self.task
         until = task["requirements"].get("followup_until")
-        if until is not None and self.now() >= until and task["lifecycle"] in {"ACTIVE", "PAUSED"}:
+        if (task["requirements"].get("followup_authorized") is True and until is not None
+                and self.now() >= until and task["lifecycle"] in {"ACTIVE", "PAUSED"}):
             task.update(lifecycle="EXPIRED", outcome_reason="DEADLINE_REACHED")
             self._save(task)
             self.invalidate("EXPIRED")
@@ -108,11 +118,20 @@ class Demo:
         for key in ("followup_authorized", "promotion_eligible"):
             if key in req and req[key] is not None and type(req[key]) is not bool:
                 raise DomainError("INVALID_AUTHORIZATION")
-        for key in ("use_case", "current_problem", "region", "condition"):
+        for key in ("use_case", "current_problem"):
+            if key in req and not isinstance(req[key], str):
+                raise DomainError("INVALID_REQUIREMENTS")
+        for key in ("region", "condition"):
             if key in req and (not isinstance(req[key], str) or not req[key].strip()):
                 raise DomainError("INVALID_REQUIREMENTS")
-        if "notification_channel" in req and req["notification_channel"] != "terminal":
-            raise DomainError("ONLY_TERMINAL_SUPPORTED")
+        if "region" in req:
+            req["region"] = normalize_region(req["region"])
+        if "condition" in req:
+            req["condition"] = normalize_condition(req["condition"])
+            if req["condition"] not in {"new", "used"}:
+                raise DomainError("INVALID_CONDITION: 仅支持全新(new)或二手(used)，请确认用户意愿")
+        if "notification_channel" in req and req["notification_channel"] not in {"terminal", "page"}:
+            raise DomainError("UNSUPPORTED_NOTIFICATION_CHANNEL")
         if req == task["requirements"]:
             return task
         task.update(requirements=req, constraints_version=task["constraints_version"] + 1,
@@ -158,9 +177,26 @@ class Demo:
         for raw in offers:
             offer = self.sim.priced(raw, req)
             reasons = []
-            for key in ("region", "condition", "model"):
-                if req.get(key) and offer[key] != req[key]:
-                    reasons.append(key)
+            reason_details = {}
+            required_region = normalize_region(req["region"])
+            offer_region = normalize_region(offer["region"])
+            if required_region != "ANY" and offer_region != required_region:
+                reasons.append("region")
+                reason_details["region"] = {
+                    "code": "REGION_TAG_MISMATCH", "required_region": required_region,
+                    "offer_region": offer_region, "delivery_coverage": "NOT_VERIFIED",
+                    "explanation": "商品地区/版本标签与需求不符；本 Demo 未核验收货地址的配送覆盖，不能据此断言无法配送。",
+                }
+            required_condition = normalize_condition(req["condition"])
+            offer_condition = normalize_condition(offer["condition"])
+            if offer_condition != required_condition:
+                reasons.append("condition")
+                reason_details["condition"] = {
+                    "code": "CONDITION_TAG_MISMATCH", "required_condition": required_condition,
+                    "offer_condition": offer_condition,
+                }
+            if req.get("model") and offer["model"] != req["model"]:
+                reasons.append("model")
             if offer["storage_gb"] < req["storage_gb"]:
                 reasons.append("storage_gb")
             if offer["total_cents"] > req["budget_cents"]:
@@ -170,7 +206,8 @@ class Demo:
             if offer["expected_delivery_at"] > req["desired_delivery_at"]:
                 reasons.append("desired_delivery_at")
             (rejected if reasons else accepted).append(
-                {"offer_id": offer["offer_id"], "reasons": reasons} if reasons else offer)
+                {"offer_id": offer["offer_id"], "reasons": reasons,
+                 "reason_details": reason_details} if reasons else offer)
         accepted.sort(key=lambda o: o["total_cents"])
         result = {"status": "OK" if accepted else "NO_MATCH", "offers": accepted,
                   "rejected": rejected, "constraints_version": version}
@@ -217,6 +254,8 @@ class Demo:
 
     def _check_operation(self, op):
         self._active()
+        # before_action 可能处理暂停/恢复等控制，必须以其后的持久状态为准。
+        op = self.operation(op["id"])
         if self.task.get("verification_required"):
             raise DomainError("FACTS_UNVERIFIED")
         if not op["valid"] or op["constraints_version"] != self.task["constraints_version"]:
@@ -230,12 +269,13 @@ class Demo:
             raise DomainError("OFFER_CHANGED")
         if current["total_cents"] > self.task["requirements"]["budget_cents"]:
             raise DomainError("OVER_BUDGET")
+        return op
 
     def approve(self, op_id):
         op = self.operation(op_id)
         if op["status"] != "PREPARED":
             raise DomainError("NOT_PENDING_APPROVAL")
-        self._check_operation(op)
+        op = self._check_operation(op)
         op.update(approved=True, approved_at=self.now())
         self.store.save_operation(self.owner, op)
         self.record("user_approval", {"operation_id": op_id})
@@ -254,7 +294,7 @@ class Demo:
         op = self.operation(op_id)
         if op["status"] in {"ACCEPTED", "UNKNOWN", "SUBMITTING"}:
             return op  # 重放不再次执行外部写操作
-        self._check_operation(op)
+        op = self._check_operation(op)
         if not op["approved"]:
             raise DomainError("CONFIRMATION_REQUIRED")
         op.update(status="SUBMITTING", submitted_at=self.now(), verify_until=self.now() + 1800)
@@ -463,7 +503,7 @@ class Demo:
                 self.get_order_status(op["id"])
             else:
                 return False
-        elif self.missing_requirements():
+        elif self.missing_requirements() or task["requirements"].get("followup_authorized") is not True:
             return False
         elif dispatch:
             dispatch()

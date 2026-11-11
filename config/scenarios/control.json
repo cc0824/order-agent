@@ -1,0 +1,25 @@
+{
+  "name":"control",
+  "steps":[
+    {"command":"/requirements {\"use_case\":\"日常\",\"current_problem\":\"电池老化\",\"region\":\"CN\",\"budget_cents\":600000,\"storage_gb\":256,\"condition\":\"new\",\"desired_delivery_at\":1800003600,\"followup_until\":1800007200,\"check_interval_seconds\":10,\"notification_channel\":\"terminal\",\"followup_authorized\":true}"},
+    {"command":"/advance 10"},
+    {"assert":{"notification_count":1}},
+    {"command":"/pause"},
+    {"command":"/event offer {\"offer_id\":\"iphone-base-256\",\"price_cents\":569900,\"event_id\":\"paused-price\"}"},
+    {"command":"/advance 20"},
+    {"assert":{"lifecycle":"PAUSED","notification_count":1,"order_count":0}},
+    {"command":"/resume"},
+    {"command":"/advance 20"},
+    {"assert":{"lifecycle":"ACTIVE","notification_count":1}},
+    {"command":"/prepare iphone-base-256"},
+    {"command":"/approve $operation"},
+    {"command":"/event timeout_next_order {}"},
+    {"command":"/place $operation"},
+    {"command":"/end"},
+    {"command":"/advance 20"},
+    {"assert":{"lifecycle":"ENDED","order_count":1,"create_calls":1,"notification_count":2}},
+    {"command":"/event paid {\"operation_id\":\"$operation\",\"event_id\":\"late-paid\"}"},
+    {"command":"/advance 20"},
+    {"assert":{"lifecycle":"ENDED","order_count":1,"create_calls":1,"notification_count":2}}
+  ]
+}

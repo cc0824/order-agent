@@ -7,8 +7,8 @@ from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from pydantic import Field
 
-from order_demo.agent import AgentSession
-from order_demo.domain import Demo, DomainError
+from backend.agent import AgentSession
+from backend.domain import Demo, DomainError
 from test_acceptance import clarify, prepared
 
 
@@ -62,6 +62,56 @@ def test_native_hitl_waits_then_one_user_approval_submits_once(tmp_path):
         with pytest.raises(DomainError):
             session.decide(op["id"], True)
         assert demo.sim.create_calls == 1
+    demo.close()
+
+
+@pytest.mark.parametrize("text", ["确认提交", "重新提交订单"])
+def test_chat_confirmation_keeps_native_approval_pending_until_button_decision(tmp_path, text):
+    demo = Demo(tmp_path)
+    clarify(demo)
+    op = prepared(demo)
+    with AgentSession(demo, model=ToolCallingModel(responses=[
+            call("place_simulated_order", {"operation_id": op["id"]})])) as session:
+        session.chat("发起购买确认")
+        result = session.chat(text)
+        assert session.pending()[0]["args"]["operation_id"] == op["id"]
+        assert result["pending_approval"][0]["args"]["operation_id"] == op["id"]
+        assert demo.operation(op["id"])["valid"]
+        assert not demo.store.events(demo.owner, "user_rejection")
+        assert demo.sim.order_count == 0
+        session.decide(op["id"], True)
+        assert demo.sim.order_count == 1
+        assert demo.sim.create_calls == 1
+    demo.close()
+
+
+def test_changed_instruction_still_revokes_pending_purchase_without_order(tmp_path):
+    demo = Demo(tmp_path)
+    clarify(demo)
+    op = prepared(demo)
+    with AgentSession(demo, model=ToolCallingModel(responses=[
+            call("place_simulated_order", {"operation_id": op["id"]})])) as session:
+        session.chat("发起购买确认")
+        session.chat("确认提交，但先把预算改为5000元")
+        assert not session.pending()
+        assert not demo.operation(op["id"])["valid"]
+        assert demo.sim.order_count == 0
+    demo.close()
+
+
+def test_chat_confirmation_does_not_revive_expired_native_approval(tmp_path):
+    clock = [1800000000]
+    demo = Demo(tmp_path, now=lambda: clock[0])
+    clarify(demo)
+    op = prepared(demo)
+    with AgentSession(demo, model=ToolCallingModel(responses=[
+            call("place_simulated_order", {"operation_id": op["id"]})])) as session:
+        session.chat("发起购买确认")
+        clock[0] += 301
+        session.chat("确认提交")
+        assert not session.pending()
+        assert not demo.operation(op["id"])["valid"]
+        assert demo.sim.order_count == 0
     demo.close()
 
 

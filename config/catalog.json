@@ -1,0 +1,5 @@
+[
+  {"offer_id":"iphone-base-256","model":"iPhone 16","storage_gb":256,"condition":"new","region":"CN","seller":"模拟自营店A","price_cents":579900,"shipping_cents":0,"fee_cents":0,"conditional_cents":499900,"discount_condition":"须核实换新资格","stock":5,"quote_version":1,"delivery_seconds":1800},
+  {"offer_id":"iphone-plus-512","model":"iPhone 16 Plus","storage_gb":512,"condition":"new","region":"CN","seller":"模拟自营店B","price_cents":729900,"shipping_cents":0,"fee_cents":0,"stock":3,"quote_version":1,"delivery_seconds":2400},
+  {"offer_id":"iphone-base-128","model":"iPhone 16","storage_gb":128,"condition":"new","region":"CN","seller":"模拟自营店C","price_cents":499900,"shipping_cents":0,"fee_cents":0,"stock":4,"quote_version":1,"delivery_seconds":1800}
+]

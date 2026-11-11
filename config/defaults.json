@@ -1,0 +1,9 @@
+{
+  "region": "CN",
+  "condition": "new",
+  "storage_gb": 128,
+  "delivery_days": 7,
+  "followup_days": 7,
+  "check_interval_seconds": 600,
+  "notification_channel": "page"
+}

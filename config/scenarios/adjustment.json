@@ -1,0 +1,20 @@
+{
+  "name":"adjustment",
+  "steps":[
+    {"command":"/requirements {\"use_case\":\"拍照\",\"current_problem\":\"电池老化\",\"region\":\"CN\",\"budget_cents\":800000,\"storage_gb\":256,\"condition\":\"new\",\"desired_delivery_at\":1800003600,\"followup_until\":1800007200,\"check_interval_seconds\":10,\"notification_channel\":\"terminal\",\"followup_authorized\":true}"},
+    {"command":"/prepare iphone-base-256"},
+    {"command":"/approve $operation"},
+    {"command":"/requirements {\"budget_cents\":600000}"},
+    {"command":"/place $operation","expect_error":"STALE_VERSION"},
+    {"assert":{"order_count":0}},
+    {"command":"/prepare iphone-base-256"},
+    {"command":"/approve $operation"},
+    {"command":"/event timeout_next_order {}"},
+    {"command":"/place $operation"},
+    {"assert":{"phase":"ORDER_UNKNOWN","order_count":1,"create_calls":1}},
+    {"command":"/advance 10"},
+    {"assert":{"phase":"WAITING_PAYMENT","order_count":1,"create_calls":1}},
+    {"command":"/advance 10"},
+    {"assert":{"order_count":1,"create_calls":1}}
+  ]
+}

@@ -1,4 +1,4 @@
-# Local documents and demo data
+# Local documents, legacy fixture directory and generated session data
 /docs/
 /fixtures/
 /data/
@@ -24,7 +24,7 @@ dist/
 htmlcov/
 coverage.xml
 
-# Local secrets; .env.example remains available for submission
+# Local secrets; config/.env.example and JSON demo data are shared
 .env
 .env.local
 .env.*.local
@@ -37,7 +37,6 @@ coverage.xml
 *.sqlite*
 *.db
 *.db-*
-simulated_external.json
 
 # IDE and operating system files
 .idea/
